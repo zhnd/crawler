@@ -2,9 +2,12 @@ import os
 import re
 import sys
 from multiprocessing import Pool
+from urllib import parse
 from urllib.error import HTTPError
 
 import requests
+import urllib3
+from hyper.contrib import HTTP20Adapter
 
 
 class Aiqiyi(object):
@@ -22,13 +25,17 @@ class Aiqiyi(object):
 
     def get_page(self, url):
         headers = {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'zh-CN,zh;q=0.9',
-            'Cache-Control': 'max-age=0',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.87 Safari/537.36'
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
+            'accept-encoding': 'gzip, deflate, br',
+            'accept-language': 'zh-CN,zh;q=0.9',
+            'cache-control': 'max-age=0',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.87 Safari/537.36'
         }
-        response = self.request('get', url, headers=headers)
+        session = requests.session()
+        result = parse.urlparse(url)
+        prefix = result.scheme + '://' + result.netloc
+        session.mount(prefix, HTTP20Adapter())
+        response = session.request('get', url, headers=headers)
         response.encoding = 'utf-8'
         return response.text
 
@@ -41,14 +48,16 @@ class Aiqiyi(object):
         return title
 
     def get_m3u8_url(self):
-        return 'https://yushou.qitu-zuida.com/20190123/26479_da167b8e/index.m3u8'
+        m3u8_url = ''
+        return m3u8_url
 
     def download(self, url, filepath):
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.87 Safari/537.36'
         }
-        size = 0
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         response = self.request('get', url, headers=headers, stream=True, verify=False)
+        size = 0
         chunk_size = 1024
         if response.status_code == 200:
             content_length = int(response.headers['Content-Length'])
@@ -64,16 +73,14 @@ class Aiqiyi(object):
         else:
             print('下载出错')
 
-    def start(self):
-        page = self.get_page(self.url)
-        title = self.get_title(page)
-        print(title)
+    def crawl_video(self, title):
         path = os.path.join(os.getcwd(), title)
         if not os.path.exists(path):
             os.makedirs(path)
-        # https://yushou.qitu-zuida.com/20190123/26479_da167b8e/index.m3u8
-        # https://yushou.qitu-zuida.com/20190123/26479_da167b8e/800k/hls/index.m3u8
         m3u8_url = self.get_m3u8_url()
+        if m3u8_url == '':
+            return
+        print(m3u8_url)
         content = self.get_page(m3u8_url)
         if '#EXTM3U' not in content:
             raise BaseException('非m3u8链接')
@@ -91,12 +98,22 @@ class Aiqiyi(object):
                 urls.append(ts_url)
         pool = Pool(32)
         for url in urls:
-            filename = url[-20:]
+            filename = os.path.basename(url)
+            if filename.find('?') > -1:
+                filename = filename[0:filename.find('?')]
             filepath = os.path.join(path, filename)
             pool.apply_async(self.download, args=(url, filepath,))
         pool.close()
         pool.join()
         # copy /b *.ts new.mp4
+
+    def start(self):
+        page = self.get_page(self.url)
+        title = self.get_title(page)
+        if title == '':
+            return
+        print(title)
+        self.crawl_video(title)
 
 
 def main():
