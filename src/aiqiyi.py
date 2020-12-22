@@ -72,6 +72,8 @@ class Aiqiyi(object):
                         print('\n')
         else:
             print('下载出错')
+            if os.path.exists(filepath):
+                os.remove(filepath)
 
     def crawl_video(self, title):
         path = os.path.join(os.getcwd(), title)
@@ -102,7 +104,7 @@ class Aiqiyi(object):
             if filename.find('?') > -1:
                 filename = filename[0:filename.find('?')]
             filepath = os.path.join(path, filename)
-            pool.apply_async(self.download, args=(url, filepath,))
+            pool.apply_async(self.download, args=(url, filepath))
         pool.close()
         pool.join()
         # copy /b *.ts new.mp4
