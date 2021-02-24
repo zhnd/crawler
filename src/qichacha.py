@@ -67,6 +67,7 @@ class Qichacha(object):
         company['dateOfEstablishment'] = ntable.xpath("//td[text()='成立日期']/following-sibling::td[1]/text()")[
             0].strip()
         company['registeredCapital'] = ntable.xpath("//td[text()=' 注册资本 ']/following-sibling::td[1]/text()")[0].strip()
+        company['paidInCapital'] = ntable.xpath("//td[text()=' 实缴资本 ']/following-sibling::td[1]/text()")[0].strip()
         company['dateOfApproval'] = ntable.xpath("//td[text()='核准日期']/following-sibling::td[1]/text()")[0].strip()
         company['creditCode'] = ntable.xpath("//td[text()='统一社会信用代码']/following-sibling::td[1]/text()")[0].strip()
         company['organizationCode'] = ntable.xpath("//td[text()='组织机构代码']/following-sibling::td[1]/text()")[0].strip()
@@ -131,7 +132,7 @@ class Qichacha(object):
                     company['registrationStatus'],
                     company['dateOfEstablishment'],
                     company['registeredCapital'],
-                    '',
+                    company['paidInCapital'],
                     company['dateOfApproval'],
                     company['creditCode'],
                     company['organizationCode'],
